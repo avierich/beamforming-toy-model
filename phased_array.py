@@ -4,20 +4,30 @@ import matplotlib.animation as animation
 
 
 frames = 400  # Number of frames in the animation
-grid_size = (128, 128)  # Size of heatmap grid
+RESOLUTION = 512
+grid_size = (RESOLUTION, RESOLUTION)  # Size of heatmap grid
 
 
 
-OMEGA = 0.5
 
-NUM_TRANSMITTERS = 4
+NOISE = 0.000001
+
+NUM_TRANSMITTERS = 16
 
 THETA = np.pi*(180+20)/180.0
 THETA_B = np.pi*(180-10)/180.0
 
 TX_OFFSET = 0
 
-transmitters = [(x,TX_OFFSET) for x in range(int(grid_size[0]/4)+int(grid_size[0]/32), int(3*grid_size[0]/4), int(grid_size[0]/(4*NUM_TRANSMITTERS)))]
+# transmitters = [(x,TX_OFFSET) for x in range(int(grid_size[0]/4)+int(grid_size[0]/32), int(3*grid_size[0]/4), int(grid_size[0]/(4*NUM_TRANSMITTERS)))]
+
+OMEGA = 0.25
+
+LAMBDA = 2*np.pi*1.0/OMEGA
+
+tx_spacing = LAMBDA/2.0
+
+transmitters = [(n*tx_spacing + RESOLUTION/2 - NUM_TRANSMITTERS*tx_spacing/2+tx_spacing/2, TX_OFFSET) for n in range(0,NUM_TRANSMITTERS)]
 
 
 # Precompute transmitter to cell distances
@@ -87,14 +97,14 @@ annotationB = ax.annotate(
     'Rx B', xy=(1,0), xytext=(-1,0),
 )
 
-START_ANGLE = np.pi*(-30)/180.0 
-ANGLE_DELTA = np.pi*(50)/180.0
+START_ANGLE = np.pi*(-60)/180.0 
+ANGLE_DELTA = np.pi*(120)/180.0
 
 sum_rate_plot, = ax2.plot(np.linspace(START_ANGLE, START_ANGLE+ANGLE_DELTA, frames), np.zeros(frames))
-ax2.set_ylim([0, 90])
-ax2.set_xlim([0,50])
-ax2.set_title("SNIR B")
-ax2.set_ylabel("SNIR (dB)")
+ax2.set_ylim([0,30])
+ax2.set_xlim([0,120])
+ax2.set_title("Sum Rate")
+ax2.set_ylabel("Rate")
 ax2.set_xlabel("$\Delta\\theta$ (Degrees)")
 
 fig.tight_layout()
@@ -108,19 +118,29 @@ def update(frame):
 
     print("Frame: "+str(frame))
 
-    theta_a = np.pi*(20)/180.0
+    theta_a = np.pi*(60)/180.0
     theta_b = START_ANGLE + ANGLE_DELTA*frame/frames
+
+    # rx a position:
+    rx_pos_a = (int(grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_a)), int((RESOLUTION/2)*np.cos(theta_a))+TX_OFFSET)
+    rx_pos_b = (int(grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_b)), int((RESOLUTION/2)*np.cos(theta_b))+TX_OFFSET)
+    print(rx_pos_a)
 
     heatmap.set_array(0.5*generate_data(theta_a, frame)+0.5*generate_data(theta_b, frame))  # Update heatmap data]
 
-    # rx a position:
-    rx_pos_a = (64-int(100*np.sin(theta_a)), int(100*np.cos(theta_a)))
-    rx_pos_b = (64-int(100*np.sin(theta_b)), int(100*np.cos(theta_b)))
+
 
     # snir = rx_probe((23,100),THETA)/rx_probe((23,100),THETA_B)
     # print(np.log2(1+SNIR))
-    snir_b = 20*np.log10(rx_probe(rx_pos_b,theta_b)/rx_probe(rx_pos_b,theta_a))
-    snir_a = 20*np.log10(rx_probe(rx_pos_a,theta_a)/rx_probe(rx_pos_a,theta_b))
+
+
+    # snir_b = 20*np.log10(rx_probe(rx_pos_b,theta_b)/rx_probe(rx_pos_b,theta_a))
+    # snir_a = 20*np.log10(rx_probe(rx_pos_a,theta_a)/rx_probe(rx_pos_a,theta_b))
+
+
+
+    rate_a = np.log2(1+rx_probe(rx_pos_b,theta_b)/(NOISE+rx_probe(rx_pos_b,theta_a)))
+    rate_b = np.log2(1+rx_probe(rx_pos_b,theta_b)/(NOISE+rx_probe(rx_pos_b,theta_a)))
 
     print("Theta a: " + str(180*theta_a/np.pi) + " Theta b: " + str(180*theta_b/np.pi))
     # print("Power aa: " + str(rx_probe(rx_pos_a,theta_a)) + " Power ab: " + str(rx_probe(rx_pos_a,theta_b)))
@@ -129,7 +149,7 @@ def update(frame):
     # print(rx_pos_a)
 
     # print(snir_a)
-    sum_rates.append(snir_b)
+    sum_rates.append(rate_a+rate_b)
     angles.append(180*(theta_a-theta_b)/np.pi)
 
 
@@ -151,7 +171,7 @@ def update(frame):
     return [heatmap, scatter, rx_scatter, annotationA, annotationB, sum_rate_plot]
 
 # Create animation
-ani = animation.FuncAnimation(fig, update, frames=frames, interval=30, blit=False)
+ani = animation.FuncAnimation(fig, update, frames=frames, interval=1, blit=False)
 
 # Save as GIF (optional)
 # ani.save("animated_heatmap_b.gif", writer="pillow")
