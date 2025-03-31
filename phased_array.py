@@ -32,13 +32,8 @@ for tx in transmitters:
 
 
 
-def tx(tx_pos, r, theta, t):
+def tx(r, beta_x, t):
     # Compute radial distance from tx
-    beta_x = -1.0*OMEGA*(tx_pos[0]-grid_size[0]/4)*np.sin(theta+np.pi)
-    # if pos == (30,93):
-    #     return 10
-    # else:
-    #   return np.exp(1.0j*(OMEGA*t - r*OMEGA + beta_x))/NUM_TRANSMITTERS
     return np.exp(1.0j*(OMEGA*t - r*OMEGA + beta_x))/NUM_TRANSMITTERS
 
 
@@ -49,7 +44,8 @@ def rx_probe(rx_pos, tx_theta):
     for t in range(N_SAMPLES):
         signal_point = 0
         for idx, transmitter in enumerate(transmitters):
-            signal_point += tx(transmitter, tx_distances[idx][rx_pos], tx_theta, t)
+            beta_x = -1.0*OMEGA*(transmitter[0]-grid_size[0]/4)*np.sin(tx_theta+np.pi)
+            signal_point += tx(tx_distances[idx][rx_pos], beta_x, t)
         power += np.abs(signal_point**2)
     return power/N_SAMPLES
         
@@ -57,11 +53,15 @@ def rx_probe(rx_pos, tx_theta):
 
 
 field = np.empty(grid_size)
+
+
+
+## New generate data
 def generate_data(theta, t):
-    for index, output, in np.ndenumerate(field):
-        field[index] = 0
-        for idx, transmitter in enumerate(transmitters):
-            field[index] += np.real(tx(transmitter, tx_distances[idx][index],theta, t))
+    field = np.zeros(grid_size)
+    for idx, transmitter in enumerate(transmitters):
+        beta_x = -1.0*OMEGA*(transmitter[0]-grid_size[0]/4)*np.sin(theta+np.pi)
+        field += np.real(np.exp(1.0j*(OMEGA*t - tx_distances[idx]*OMEGA + beta_x))/NUM_TRANSMITTERS)
     return field
 
 def generate_tx_points():
