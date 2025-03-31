@@ -20,9 +20,20 @@ TX_OFFSET = 0
 transmitters = [(x,TX_OFFSET) for x in range(int(grid_size[0]/4)+int(grid_size[0]/32), int(3*grid_size[0]/4), int(grid_size[0]/(4*NUM_TRANSMITTERS)))]
 
 
-def tx(tx_pos, pos, theta, t):
+# Precompute transmitter to cell distances
+tx_distances=[]
+
+for tx in transmitters:
+    distances = np.zeros(grid_size)
+    for index, cell, in np.ndenumerate(distances):
+        r = np.sqrt(np.power(tx[0]-index[0], 2) + np.power(tx[1]-index[1],2))
+        distances[index] = r
+    tx_distances.append(distances)
+
+
+
+def tx(tx_pos, r, theta, t):
     # Compute radial distance from tx
-    r = np.sqrt(np.power(tx_pos[0]-pos[0], 2) + np.power(tx_pos[1]-pos[1],2))
     beta_x = -1.0*OMEGA*(tx_pos[0]-grid_size[0]/4)*np.sin(theta+np.pi)
     # if pos == (30,93):
     #     return 10
@@ -37,8 +48,8 @@ def rx_probe(rx_pos, tx_theta):
     t = 0
     for t in range(N_SAMPLES):
         signal_point = 0
-        for transmitter in transmitters:
-            signal_point += tx(transmitter,rx_pos,tx_theta, t)
+        for idx, transmitter in enumerate(transmitters):
+            signal_point += tx(transmitter, tx_distances[idx][rx_pos], tx_theta, t)
         power += np.abs(signal_point**2)
     return power/N_SAMPLES
         
@@ -49,8 +60,8 @@ field = np.empty(grid_size)
 def generate_data(theta, t):
     for index, output, in np.ndenumerate(field):
         field[index] = 0
-        for transmitter in transmitters:
-            field[index] += np.real(tx(transmitter,index,theta, t))
+        for idx, transmitter in enumerate(transmitters):
+            field[index] += np.real(tx(transmitter, tx_distances[idx][index],theta, t))
     return field
 
 def generate_tx_points():
@@ -82,7 +93,7 @@ ANGLE_DELTA = np.pi*(50)/180.0
 sum_rate_plot, = ax2.plot(np.linspace(START_ANGLE, START_ANGLE+ANGLE_DELTA, frames), np.zeros(frames))
 ax2.set_ylim([0, 90])
 ax2.set_xlim([0,50])
-ax2.set_title("SNIR A")
+ax2.set_title("SNIR B")
 ax2.set_ylabel("SNIR (dB)")
 ax2.set_xlabel("$\Delta\\theta$ (Degrees)")
 
@@ -112,12 +123,13 @@ def update(frame):
     snir_a = 20*np.log10(rx_probe(rx_pos_a,theta_a)/rx_probe(rx_pos_a,theta_b))
 
     print("Theta a: " + str(180*theta_a/np.pi) + " Theta b: " + str(180*theta_b/np.pi))
-    print("Power aa: " + str(rx_probe(rx_pos_a,theta_a)) + " Power ab: " + str(rx_probe(rx_pos_a,theta_b)))
-    # print("Power bb: " + str(rx_probe(rx_pos_b,theta_b)) + " Power ba: " + str(rx_probe(rx_pos_b,theta_a)))
+    # print("Power aa: " + str(rx_probe(rx_pos_a,theta_a)) + " Power ab: " + str(rx_probe(rx_pos_a,theta_b)))
+    print("RX B Pos: " + str(rx_pos_b))
+    print("Power bb: " + str(rx_probe(rx_pos_b,theta_b)) + " Power ba: " + str(rx_probe(rx_pos_b,theta_a)))
     # print(rx_pos_a)
 
     # print(snir_a)
-    sum_rates.append(snir_a)
+    sum_rates.append(snir_b)
     angles.append(180*(theta_a-theta_b)/np.pi)
 
 
@@ -142,6 +154,6 @@ def update(frame):
 ani = animation.FuncAnimation(fig, update, frames=frames, interval=30, blit=False)
 
 # Save as GIF (optional)
-ani.save("animated_heatmap.gif", writer="pillow")
+# ani.save("animated_heatmap_b.gif", writer="pillow")
 
 plt.show()
