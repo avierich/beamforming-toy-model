@@ -5,7 +5,7 @@ import matplotlib.animation as animation
 
 
 frames = 600  # Number of frames in the animation
-RESOLUTION = 1024
+RESOLUTION = 256
 RESOLUTION_V = int(RESOLUTION*5/8)
 grid_size = (RESOLUTION, RESOLUTION_V)  # Size of heatmap grid
 
@@ -20,7 +20,7 @@ THETA_B = np.pi*(180-10)/180.0
 TX_OFFSET = 10
 
 
-OMEGA = 0.25
+OMEGA = 2
 
 LAMBDA = 2*np.pi*1.0/OMEGA
 
@@ -56,7 +56,7 @@ def rx_probe(rx_pos, tx_theta):
         signal_point = 0
         for idx, transmitter in enumerate(transmitters):
             beta_x = -1.0*OMEGA*(transmitter[0]-grid_size[0]/4)*np.sin(tx_theta+np.pi)
-            signal_point += tx(tx_distances[idx][rx_pos], beta_x, t)
+            signal_point += tx(np.sqrt((transmitters[idx][0] - rx_pos[0])**2 + (transmitters[idx][1] - rx_pos[1])**2), beta_x, t)
         power += np.abs(signal_point**2)
     return power/N_SAMPLES
         
@@ -134,8 +134,8 @@ def update(frame):
         theta_b = START_ANGLE+ANGLE_DELTA - 2*ANGLE_DELTA*(frame-frames/2)/frames
 
     # rx a position:
-    rx_pos_a = (int(grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_a)), int((RESOLUTION/2)*np.cos(theta_a))+TX_OFFSET)
-    rx_pos_b = (int(grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_b)), int((RESOLUTION/2)*np.cos(theta_b))+TX_OFFSET)
+    rx_pos_a = (grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_a), (RESOLUTION/2)*np.cos(theta_a)+TX_OFFSET)
+    rx_pos_b = (grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_b), (RESOLUTION/2)*np.cos(theta_b)+TX_OFFSET)
     print(rx_pos_a)
 
     heatmap.set_array(np.flip((1.5*generate_data(theta_a, frame)+1.5*generate_data(theta_b, frame)).T,0))  # Update heatmap data]
@@ -167,11 +167,11 @@ def update(frame):
 
     rx_scatter.set_offsets((np.c_[[rx_pos_a[0],rx_pos_b[0]], [RESOLUTION_V-rx_pos_a[1],RESOLUTION_V-rx_pos_b[1]]]))
 
-    annotationA.set_position((rx_pos_a[0]-8*4,RESOLUTION_V-rx_pos_a[1]+12*4))
+    annotationA.set_position((rx_pos_a[0]-8*1,RESOLUTION_V-rx_pos_a[1]+12*1))
     annotationA.xy = (rx_pos_a[0],RESOLUTION_V-rx_pos_a[1])
 
     
-    annotationB.set_position((rx_pos_b[0]-8*4,RESOLUTION_V-rx_pos_b[1]+12*4))
+    annotationB.set_position((rx_pos_b[0]-8*1,RESOLUTION_V-rx_pos_b[1]+12*1))
     annotationB.xy = ((rx_pos_b[0],RESOLUTION_V-rx_pos_b[1]))
 
     return [heatmap, scatter, rx_scatter, annotationA, annotationB, sum_rate_plot]
