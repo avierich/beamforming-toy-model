@@ -12,7 +12,8 @@ grid_size = (RESOLUTION, RESOLUTION_V)  # Size of heatmap grid
 
 NOISE = 0.001
 
-NUM_TRANSMITTERS = 16
+NUM_TRANSMITTERS = 32
+
 
 THETA = np.pi*(180+20)/180.0
 THETA_B = np.pi*(180-10)/180.0
@@ -20,7 +21,7 @@ THETA_B = np.pi*(180-10)/180.0
 TX_OFFSET = 10
 
 
-OMEGA = 2
+OMEGA = 8
 
 LAMBDA = 2*np.pi*1.0/OMEGA
 
@@ -33,13 +34,13 @@ transmitters = [(n*tx_spacing + RESOLUTION/2 - NUM_TRANSMITTERS*tx_spacing/2+tx_
 print("===== Begin distance Precomputing =====")
 tx_distances=[]
 
-for tx in transmitters:
+for idx, tx in enumerate(transmitters):
     distances = np.zeros(grid_size)
     for index, cell, in np.ndenumerate(distances):
         r = np.sqrt(np.power(tx[0]-index[0], 2) + np.power(tx[1]-index[1],2))
         distances[index] = r
     tx_distances.append(distances)
-    print("One TX complete")
+    print("TX "+str(idx)+" of "+str(len(transmitters))+" complete")
 print("===== Distance Computation Complete =====")
 
 
@@ -48,7 +49,7 @@ def tx(r, beta_x, t):
     return np.exp(1.0j*(OMEGA*t - r*OMEGA + beta_x))/NUM_TRANSMITTERS
 
 
-N_SAMPLES = 1000
+N_SAMPLES = 100
 def rx_probe(rx_pos, tx_theta):
     power = 0
     t = 0
@@ -78,6 +79,24 @@ def generate_tx_points():
         points_x.append(RESOLUTION_V-transmitter[1])
         points_y.append(transmitter[0])
     return points_x, points_y
+
+
+def pattern_plot(radius):
+    plot_angles = np.linspace(0,2*np.pi,2048)
+    plot_mag = []
+
+    for idx, angle in enumerate(plot_angles):
+        if idx%10==0:
+            print("Pattern Progress: " + str(int(100*idx/len(plot_angles))) + "%")
+        rx_pos = (grid_size[0]/2-radius*np.sin(angle), radius*np.cos(angle)+TX_OFFSET)
+        plot_mag.append(10*np.log10(rx_probe(rx_pos, np.pi*(0)/180.0)))
+
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.plot(plot_angles, plot_mag)
+    ax.set_title("Radiation Pattern "+str(len(transmitters))+" TX Array")
+    plt.show()
+
+pattern_plot(10000)
 
 # Initialize figure
 fig, (ax, ax2) = plt.subplots(2,1,figsize=(6, 8),gridspec_kw={'height_ratios':[2,1]})
@@ -138,7 +157,9 @@ def update(frame):
     rx_pos_b = (grid_size[0]/2-(RESOLUTION/2)*np.sin(theta_b), (RESOLUTION/2)*np.cos(theta_b)+TX_OFFSET)
     print(rx_pos_a)
 
-    heatmap.set_array(np.flip((1.5*generate_data(theta_a, frame)+1.5*generate_data(theta_b, frame)).T,0))  # Update heatmap data]
+    # heatmap.set_array(np.flip((1.5*generate_data(theta_a, frame)+1.5*generate_data(theta_b, frame)).T,0))  # Update heatmap data]
+    heatmap.set_array(np.flip((1.5*generate_data(theta_b, frame)).T,0))  # Update heatmap data]
+
 
     # snir_b = 20*np.log10(rx_probe(rx_pos_b,theta_b)/rx_probe(rx_pos_b,theta_a))
     # snir_a = 20*np.log10(rx_probe(rx_pos_a,theta_a)/rx_probe(rx_pos_a,theta_b))
