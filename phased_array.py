@@ -29,7 +29,6 @@ tx_spacing = LAMBDA/2.0
 
 transmitters = [(n*tx_spacing + RESOLUTION/2 - NUM_TRANSMITTERS*tx_spacing/2+tx_spacing/2, TX_OFFSET) for n in range(0,NUM_TRANSMITTERS)]
 
-
 # Precompute transmitter to cell distances
 print("===== Begin distance Precomputing =====")
 tx_distances=[]
@@ -50,14 +49,18 @@ def tx(r, beta_x, t):
 
 
 N_SAMPLES = 100
-def rx_probe(rx_pos, tx_theta):
+def rx_probe(rx_pos, tx_theta,transmitter_subset=NUM_TRANSMITTERS):
     power = 0
     t = 0
+
+    # TX Range: NUM_TRANSMITTERS/2-SUBSET_NUMBER/2
+
     for t in range(N_SAMPLES):
         signal_point = 0
         for idx, transmitter in enumerate(transmitters):
-            beta_x = -1.0*OMEGA*(transmitter[0]-grid_size[0]/4)*np.sin(tx_theta+np.pi)
-            signal_point += tx(np.sqrt((transmitters[idx][0] - rx_pos[0])**2 + (transmitters[idx][1] - rx_pos[1])**2), beta_x, t)
+            if idx >= int(NUM_TRANSMITTERS/2 - transmitter_subset/2) and idx < int(NUM_TRANSMITTERS/2 + transmitter_subset/2):
+                beta_x = -1.0*OMEGA*(transmitter[0]-grid_size[0]/4)*np.sin(tx_theta+np.pi)
+                signal_point += tx(np.sqrt((transmitters[idx][0] - rx_pos[0])**2 + (transmitters[idx][1] - rx_pos[1])**2), beta_x, t)
         power += np.abs(signal_point**2)
     return power/N_SAMPLES
         
@@ -81,7 +84,7 @@ def generate_tx_points():
     return points_x, points_y
 
 
-def pattern_plot(radius):
+def pattern_plot_polar(radius):
     plot_angles = np.linspace(0,2*np.pi,2048)
     plot_mag = []
 
@@ -89,14 +92,42 @@ def pattern_plot(radius):
         if idx%10==0:
             print("Pattern Progress: " + str(int(100*idx/len(plot_angles))) + "%")
         rx_pos = (grid_size[0]/2-radius*np.sin(angle), radius*np.cos(angle)+TX_OFFSET)
-        plot_mag.append(10*np.log10(rx_probe(rx_pos, np.pi*(0)/180.0)))
+        # plot_mag.append(10*np.log10(rx_probe(rx_pos, np.pi*(0)/180.0)))
+        plot_mag.append(rx_probe(rx_pos, np.pi*(0)/180.0))
+
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
     ax.plot(plot_angles, plot_mag)
     ax.set_title("Radiation Pattern "+str(len(transmitters))+" TX Array")
     plt.show()
 
-pattern_plot(10000)
+def pattern_plot_cart(radius):
+    plot_angles = np.linspace(-0.5*np.pi,0.5*np.pi,2048)
+    plot_mag = []
+
+    fig, ax = plt.subplots()
+
+    for tx_subsets in [8,16,32]:
+        plot_mag = []
+        for idx, angle in enumerate(plot_angles):
+            if idx%10==0:
+                print("Pattern Progress: " + str(int(100*idx/len(plot_angles))) + "%")
+            rx_pos = (grid_size[0]/2-radius*np.sin(angle), radius*np.cos(angle)+TX_OFFSET)
+            # plot_mag.append(10*np.log10(rx_probe(rx_pos, np.pi*(0)/180.0)))
+            plot_mag.append(rx_probe(rx_pos, np.pi*(0)/180.0, tx_subsets))
+
+        ax.plot(180*plot_angles/np.pi, 10*np.log10(plot_mag/np.max(plot_mag)), label = str(tx_subsets) + " TX Array")
+
+
+
+    ax.set_ylim([-40,0])
+    ax.set_title("Normalized Radiation Pattern by Linear Array Size (Element Count)")
+    ax.set_xlabel("Off-axis angle (degrees)")
+    ax.set_ylabel("Normalized gain (dB)")
+    ax.legend(loc='upper right')
+    plt.show()
+
+pattern_plot_cart(10000)
 
 # Initialize figure
 fig, (ax, ax2) = plt.subplots(2,1,figsize=(6, 8),gridspec_kw={'height_ratios':[2,1]})
